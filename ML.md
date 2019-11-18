@@ -80,7 +80,24 @@ mglearn.discrete_scatter(X_train[:,0],X_train[:,1],y_train)
 
   
 
+## カーネル法を用いたサポートベクトルマシン
 
+背景・・・線形モデルは制約が強い  
+対策・・・特徴量を追加する  
+
+合成データセット
+```
+X,y = make_blobs(centers=4,random_state=8)
+y = y%2
+mglearn.discrete_scatter(X[:,0],X[:,1],y)
+plt.xlabel("Feature 0")
+plt.ylabel("Feature 1")
+```
+
+線形分離が不可能な2クラス分類データセット
+![“dataset_supportvector”](dataset_supportvector.png)
+
+ここで入力特徴量を拡張する。
 
 
 
