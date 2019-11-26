@@ -98,7 +98,7 @@ plt.ylabel("Feature 1")
 ![“dataset_supportvector”](dataset_supportvector.png)
 
 ここで入力特徴量を拡張する。  
-feature1**2の特徴量を追加する。  
+feature1^^2の特徴量を追加する。  
 (feature 0,feature 1,feature1**2)の三次元の点になる。
 
 ![“SVM3D”](SVM3D.png)
