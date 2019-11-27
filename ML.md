@@ -83,8 +83,8 @@ mglearn.discrete_scatter(X_train[:,0],X_train[:,1],y_train)
 ## カーネル法を用いたサポートベクトルマシン
 
 背景・・・線形モデルは制約が強い  
-対策・・・特徴量を追加する  
-
+対策・・・特徴量を追加することで線形モデルを柔軟にする  
+回帰 ◯ 分類 ×  
 合成データセット
 ```
 X,y = make_blobs(centers=4,random_state=8)
@@ -94,12 +94,128 @@ plt.xlabel("Feature 0")
 plt.ylabel("Feature 1")
 ```
 
-線形分離が不可能な2クラス分類データセット
-![“dataset_supportvector”](dataset_supportvector.png)
+2クラスのデータセットを用意する。
+![“KernelSVM1”](KernelSVM1.png)
 
-ここで入力特徴量を拡張する。  
-feature1^^2の特徴量を追加する。  
-(feature 0,feature 1,feature1**2)の三次元の点になる。
+これを直線で分類しようとすると
+
+```
+from sklearn.svm import LinearSVC
+linear_svm = LinearSVC().fit(X,y)
+mglearn.plots.plot_2d_separator(linear_svm,X)
+mglearn.discrete_scatter(X[:,0],X[:,1],y)
+plt.xlabel("Feature 0")
+plt.ylabel("Feature 1")
+```
+![“KernelSVM2”](KernelSVM2.png)
+
+となり直線で分類できない。
+
+ここで入力特徴量を拡張するために feature1^^2の特徴量を追加する。  
+これにより(feature 0,feature 1,feature1**2)の三次元空間に拡張する。
+
+```
+#2番目の特徴量の2乗を追加
+X_new = np.hstack([X,X[:,1:]**2])
+from mpl_toolkits.mplot3d import Axes3D,axes3d
+figure = plt.figure()
+#3Dで可視化
+ax = Axes3D(figure,elev=-152,azim=-26)
+#y==0の点をプロットしてからy==1の点をプロット
+mask = y == 0
+ax.scatter(X_new[mask,0],X_new[mask,1],X_new[mask,2],c='b',cmap=mglearn.cm2,s=60)
+ax.scatter(X_new[~mask,0],X_new[~mask,1],X_new[~mask,2],c='r',marker='^',cmap=mglearn.cm2,s=60)
+ax.set_xlabel("feature0")
+ax.set_ylabel("feature1")
+ax.set_zlabel("feature1**2")
+```
 
 ![“SVM3D”](SVM3D.png)
 
+こうして3次元に拡張することで、3次元空間内の平面で分離できる。
+
+```
+linear_svm_3d = LinearSVC().fit(X_new,y)
+coef,intercept = linear_svm_3d.coef_.ravel(),linear_svm_3d.intercept_
+
+#線形決定境界を描画
+figure = plt.figure()
+ax = Axes3D(figure,elev=-152,azim=-26)
+xx = np.linspace(X_new[:,0].min(),X_new[:,0].max()+2,50)
+yy = np.linspace(X_new[:,1].min()-2,X_new[:,1].max()+2,50)
+XX,YY = np.meshgrid(xx,yy)
+ZZ = (coef[0]*XX + coef[1]*YY + intercept)/-coef[2]
+ax.plot_surface(XX,YY,ZZ,rstride=8,cstride=8,alpha=0.3)
+ax.scatter(X_new[mask,0],X_new[mask,1],X_new[mask,2],c='b',cmap=mglearn.cm2,s=60)
+ax.scatter(X_new[~mask,0],X_new[~mask,1],X_new[~mask,2],c='r',marker='^',cmap=mglearn.cm2,s=60)
+ax.set_xlabel("feature0")
+ax.set_ylabel("feature1")
+ax.set_zlabel("feature1**2")
+```
+
+![“KernelSVM3”](KernelSVM3.png)
+
+線形決定境界を描画できた。
+これを元の特徴量の関数としてみると
+```
+ZZ=YY**2
+dec = linear_svm_3d.decision_function(np.c_[XX.ravel(),YY.ravel(),ZZ.ravel()])
+plt.contourf(XX,YY,dec.reshape(XX.shape),levels=[dec.min(),0,dec.max()],cmap=mglearn.cm2,alpha=0.5)
+mglearn.discrete_scatter(X[:,0],X[:,1],y)
+plt.xlabel("Feature 0")
+plt.ylabel("Feature 1")
+```
+
+![“KernelSVM4”](KernelSVM4.png)
+
+という楕円形になっている。
+
+###カーネルトリック
+<br>
+しかしどの特徴量を加えたら良いかわからないという問題がある。
+数学的なトリックとして特徴量のデータポイントを拡張せずに、直接データポイント間の距離を計算する方法としてカーネルトリックがある。
+
+SVMは個々のデータポイントが2つのクラスの決定境界を表現するのにどの程度重要なのかを学習する。  
+多くの場合、2つのクラスの境界に位置するごく一部の訓練データのみが決定境界を決定し、それらをサポートベクタと呼ぶ。  
+サポートベクタとデータポイントとの距離が測定され、この距離とサポートベクタの重要性によって決定される。
+
+データポイントとの距離を測る式(ガウシアンカーネル)  
+krbf(x1,x2)=exp(-γ*abs(x1-x2)^2)
+
+これを用いて決定境界を描画
+```
+from sklearn.svm import SVC
+X,y = mglearn.tools.make_handcrafted_dataset()
+svm = SVC(kernel='rbf',C=10,gamma=0.1).fit(X,y)
+mglearn.plots.plot_2d_separator(svm,X,eps=.5)
+mglearn.discrete_scatter(X[:,0],X[:,1],y)
+#サポートベクタをプロットする
+sv = svm.support_vectors_
+#サポートベクタのクラスラベルはdual＿coef＿の正負によって与えられる
+sv_labels = svm.dual_coef_.ravel() >0
+mglearn.discrete_scatter(sv[0:,0],sv[:,1],sv_labels,s=15,markeredgewidth=3)
+plt.xlabel("Feature 0")
+plt.ylabel("Feature 1")
+```
+![“KernelSVM5”](KernelSVM5.png)
+大きく縁取りされているのがサポートベクタ
+Cとgammaの２つのパラメータを調整
+
+###SVMのパラメータ調整
+gammmaパラメータ→ガウシアンカーネルの幅を調整  
+Cパラメータ→正則化パラメータ
+
+パラメータ変化させるとどうなるか
+```
+fig,axes = plt.subplots(3,3,figsize=(15,10))
+
+for ax,C in zip(axes,[-1,0,3]):
+    for a,gamma in zip(ax,range(-1,2)):
+        mglearn.plots.plot_svm(log_C=C,log_gamma=gamma,ax=a)
+
+axes[0,0].legend(["class 0","class 1","sv class 0","sv class 1"],ncol=4,loc=(.9,1.2))
+```
+![“KernelSVM6”](KernelSVM6.png)
+
+gammaが小さいとガウシアンカーネルの直径が短くなり多くの点を近いと判断する。大きくなると個々のデータポイントを重視するようになる。  
+Cが小さいと正則化が強くなり汎化し、大きくなると正則化が弱くなり複雑化する。
