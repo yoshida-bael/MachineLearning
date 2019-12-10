@@ -10,6 +10,7 @@ import pandas as pd
 import mglearn
 import scipy as sp
 import sklearn
+from sklearn.model_selection import train_test_split
 %matplotlib inline
 ```
 <br>
@@ -36,6 +37,18 @@ plt.legend(["Class 0","Class 1"],loc=4)
 ```
 凡例の指定とlocでどこの事象に凡例を示すか指定できる
 <br>  
+  
+  
+  
+## 線形モデル
+入力特徴量の線形関数を用いて予測を行うモデルのこと
+  
+### 線形モデルによる回帰
+線形モデルによる一般的な予測式
+```
+y=w[0]x[0]+w[1]x[1]+・・・+w[p]x[p]+b
+```
+
 
 
 ## 決定木のアンサンブル  
