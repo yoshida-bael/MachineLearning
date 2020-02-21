@@ -217,7 +217,7 @@ mglearn.plots.plot_pca_illustration()
 
 Component1が最も分散が大きい方向(情報が多いということ)で、第一成分というラベルを貼る。次に第一成分と直交する方向を探して、最も情報が多い方向を見つける。こうして見つかった方向が**主成分**と呼ばれる。特徴量と同じ数存在する。  
 
-cancerデータセットのPCAによる可視化  
+#### cancerデータセットのPCAによる可視化  
 高次元のデータセットを可視化してみる。
 2特徴量の組み合わせは数がえげつないので特徴量ごとに良性と悪性のヒストグラムを書く。  
 ```
@@ -285,3 +285,170 @@ plt.ylabel("Second Principal component")
 ![PCA3](PCA3.png)
 
 実際に次元削減してプロットするとこのような散布図になった。これで線形クラス分類器とかやったらうまく分類できそう。
+
+PCAの欠点はプロットした2つの軸の解釈が用意ではないことである。
+主成分はcomponents_属性に格納される。
+```
+print(pca.components_.shape)
+```
+出力
+(2, 30)
+componentsのそれぞれの行が1つの主成分に対応する。  
+行は第一主成分が最初に来る  
+列は変換する前のもとの特徴量に対応する  
+```
+print(pca.components_)
+```
+出力
+```
+[[ 0.21890244  0.10372458  0.22753729  0.22099499  0.14258969  0.23928535
+   0.25840048  0.26085376  0.13816696  0.06436335  0.20597878  0.01742803
+   0.21132592  0.20286964  0.01453145  0.17039345  0.15358979  0.1834174
+   0.04249842  0.10256832  0.22799663  0.10446933  0.23663968  0.22487053
+   0.12795256  0.21009588  0.22876753  0.25088597  0.12290456  0.13178394]
+ [-0.23385713 -0.05970609 -0.21518136 -0.23107671  0.18611302  0.15189161
+   0.06016536 -0.0347675   0.19034877  0.36657547 -0.10555215  0.08997968
+  -0.08945723 -0.15229263  0.20443045  0.2327159   0.19720728  0.13032156
+   0.183848    0.28009203 -0.21986638 -0.0454673  -0.19987843 -0.21935186
+   0.17230435  0.14359317  0.09796411 -0.00825724  0.14188335  0.27533947]]
+```
+ヒートマップで見れる
+```
+plt.matshow(pca.components_,cmap='viridis')
+plt.yticks([0,1],["First component","Second component"])
+plt.colorbar()
+plt.xticks(range(len(cancer.feature_names)),cancer.feature_names,rotation=690,ha='left')
+plt.xlabel("Feature")
+plt.ylabel("Principal components")
+```
+![PCA4](PCA4.png)
+
+第一主成分が全ての特徴量が同じ符号になっている。これは全ての特徴量に相関があることを意味する。
+
+#### 固有顔による特徴量抽出
+PCAのもう一つの利用法として特徴量抽出がある。  
+Labeled Faces in the Wildデータセットの顔画像を用いる。
+このデータセットは有名人の顔データで構成されている。
+```
+from sklearn.datasets import fetch_lfw_people
+people = fetch_lfw_people(min_faces_per_person=20,resize=0.7)
+image_shape = people.images[0].shape
+
+fix,axes = plt.subplots(2,5,figsize=(15,8),subplot_kw={'xticks':(),'yticks':()})
+for target,image,ax in zip(people.target,people.images,axes.ravel()):
+    ax.imshow(image)
+    ax.set_title(people.target_names[target])
+```
+![PCA5](PCA5.png)
+画像は62人分であわせて、3023枚ある。
+このデータセットはブッシュとコリンの画像が多く、偏っている。
+```
+#各ターゲットの出現回数カウント
+counts = np.bincount(people.target)
+#ターゲット名と出現回数を並べて表示
+for i,(count,name) in enumerate(zip(counts,people.target_names)):
+    print("{0:25} {1:3}".format(name,count),end=' ')
+    if (i+1)%3 == 0:
+        print()
+```
+```
+Alejandro Toledo           39 Alvaro Uribe               35 Amelie Mauresmo            21 
+Andre Agassi               36 Angelina Jolie             20 Ariel Sharon               77 
+Arnold Schwarzenegger      42 Atal Bihari Vajpayee       24 Bill Clinton               29 
+Carlos Menem               21 Colin Powell              236 David Beckham              31 
+Donald Rumsfeld           121 George Robertson           22 George W Bush             530 
+Gerhard Schroeder         109 Gloria Macapagal Arroyo    44 Gray Davis                 26 
+Guillermo Coria            30 Hamid Karzai               22 Hans Blix                  39 
+Hugo Chavez                71 Igor Ivanov                20 Jack Straw                 28 
+Jacques Chirac             52 Jean Chretien              55 Jennifer Aniston           21 
+Jennifer Capriati          42 Jennifer Lopez             21 Jeremy Greenstock          24 
+Jiang Zemin                20 John Ashcroft              53 John Negroponte            31 
+Jose Maria Aznar           23 Juan Carlos Ferrero        28 Junichiro Koizumi          60 
+Kofi Annan                 32 Laura Bush                 41 Lindsay Davenport          22 
+Lleyton Hewitt             41 Luiz Inacio Lula da Silva  48 Mahmoud Abbas              29 
+Megawati Sukarnoputri      33 Michael Bloomberg          20 Naomi Watts                22 
+Nestor Kirchner            37 Paul Bremer                20 Pete Sampras               22 
+Recep Tayyip Erdogan       30 Ricardo Lagos              27 Roh Moo-hyun               32 
+Rudolph Giuliani           26 Saddam Hussein             23 Serena Williams            52 
+Silvio Berlusconi          33 Tiger Woods                23 Tom Daschle                25 
+Tom Ridge                  33 Tony Blair                144 Vicente Fox                32 
+Vladimir Putin             49 Winona Ryder               24
+```
+よって、数を各人50に制限する。
+```
+mask = np.zeros(people.target.shape,dtype=np.bool)
+for target in np.unique(people.target):
+    mask[np.where(people.target == target)[0][:50]]=1
+X_people=people.data[mask]
+y_people=people.target[mask]
+
+#0から255で表現されている、グレースケールの値0と1の間に変換
+#こうしたほうが、数値的に安定する
+X_people = X_people/255.
+```
+顔認識のタスクには、見たことのない顔がデータベースの中の人物と一致するかを判別するタスクがあるが、これをやるには個々の人物を異なるクラスとして分類器を訓練する必要がある。しかし同じ人物の画像は少ないため訓練が難しい。  
+そこで1-最近傍法クラス分類器を使う。これはクラス分類しようとしている顔に一番近いものを探す。
+```
+from sklearn.neighbors import KNeighborsClassifier
+#訓練セットとテストセットにデータを分割
+X_train,X_test,y_train,y_test = train_test_split(X_people,y_people,stratify=y_people,random_state=0)
+#KNeighborsClassifierを1-最近傍で構築
+knn = KNeighborsClassifier(n_neighbors=1)
+knn.fit(X_train,y_train)
+print(knn.score(X_test,y_test))
+```
+結果
+```
+0.23255813953488372
+```
+62クラス分類を考えると悪くない。  
+ここでPCAを使うが、元のピクセルの空間で距離を計算するのは、顔の近似度を測るのには良くないので、主成分に沿った距離で精度を上げる。
+PCAのwhitenオプションを使う。  
+これを使うと主成分が同じスケールになるようにスケールを変換する。
+```
+mglearn.plots.plot_pca_whitening()
+```
+![PCA6](PCA6.png)
+
+PCAオブジェクトを訓練して最初の100主成分を抜き出す。
+```
+pca = PCA(n_components=100,whiten=True,random_state=0).fit(X_train)
+X_train_pca = pca.transform(X_train)
+X_test_pca = pca.transform(X_test)
+
+print(X_train_pca.shape)
+```
+出力
+```
+(1547, 100)
+```
+新しいデータは100の特徴量をもっていて、これを使って1-最近傍法クラス分類器にかける。
+```
+knn = KNeighborsClassifier(n_neighbors=1)
+knn.fit(X_train_pca,y_train)
+print(knn.score(X_test_pca,y_test))
+```
+出力
+```
+0.312015503875969
+```
+精度が上がった。
+最初の主成分のいくつかを見てみる。
+```
+print(pca.components_.shape)
+```
+出力
+```
+(100, 5655)
+```
+
+```
+fix,axes = plt.subplots(3,5,figsize=(15,12),subplot_kw={'xticks':(),'yticks':()})
+for i,(component,ax) in enumerate(zip(pca.components_,axes.ravel())):
+    ax.imshow(component.reshape(image_shape),cmap='viridis')
+    ax.set_title("{}.component".format((i+1)))
+```
+![PCA7](PCA7.png)
+最初の主成分は顔と背景のコントラストをコーディングしてるようにみえ、第二主成分は光の当たり方による顔の左右の明るさをコーディングしている感じがする。  
+実際に人間が顔を判断するときは光の当たり具合から判断することはないので、アルゴリズムと人間の解釈は違うことに注意する。
+
