@@ -449,6 +449,27 @@ for i,(component,ax) in enumerate(zip(pca.components_,axes.ravel())):
     ax.set_title("{}.component".format((i+1)))
 ```
 ![PCA7](PCA7.png)
+
 最初の主成分は顔と背景のコントラストをコーディングしてるようにみえ、第二主成分は光の当たり方による顔の左右の明るさをコーディングしている感じがする。  
 実際に人間が顔を判断するときは光の当たり具合から判断することはないので、アルゴリズムと人間の解釈は違うことに注意する。
 
+PCAの解釈は回転させてから分散が小さい成分を落とす以外にももう一つの解釈がある。  
+それは、テストデータポイントを主成分の重み付き和として表現する一連の数字を見つける手法であるという解釈。  
+試しに主成分の一部を使って元の画像を再現してみる。
+```
+mglearn.plots.plot_pca_faces(X_train,X_test,image_shape)
+```
+![PCA8](PCA8.png)
+
+主成分のいくつかを残したものを逆回転して元の空間に戻した。
+当たり前だが主成分が多いほどわかりやすい。  
+実際に2つの主成分だけで散布図をプロットしてみる
+```
+mglearn.discrete_scatter(X_train_pca[:,0],X_train_pca[:,1],y_train)
+plt.xlabel("First principal component")
+plt.ylabel("Second principal component")
+```
+![PCA9](PCA9.png)
+主成分２つだけだとデータ全体がまとまってしまいクラス分離できそうにない。
+
+###　非負値行列因子分解(NMF)
